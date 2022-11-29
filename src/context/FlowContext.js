@@ -1,10 +1,5 @@
-import {
-  createContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useMemo, useState } from "react";
+import TYPES from "../constants/types";
 
 export const FlowContext = createContext({});
 
@@ -19,17 +14,14 @@ const mainNode = {
 
 export const FlowProvider = ({ children }) => {
   const [enabled, setEnabled] = useState(true);
-  const [isScratch, setIsScratch] = useState(true);
   const [nodes, setNodes] = useState([
     {
       id: "0",
       label: "Main Greeting",
       children: [1, 2, 3],
-      type: "main",
+      level: 0,
+      type: TYPES[0].value,
     },
-    "hello",
-    "world",
-    "nigga",
   ]);
   const [edges, setEdges] = useState([]);
   const isEmpty = useMemo(() => true, []);
@@ -40,11 +32,10 @@ export const FlowProvider = ({ children }) => {
       const arr = nodes;
       arr.push({
         id: "0",
-        data: {
-          label: "Main Greeting",
-          text,
-          children: [],
-        },
+        label: "Main Greeting",
+        text,
+        children: [],
+        level: 0,
         type: "main",
       });
       setNodes(arr);
@@ -57,7 +48,8 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.push(newIndex);
-    arr.push(nodeData);
+    let data = { ...nodeData, level: parent.level + 1 };
+    arr.push(data);
     setNodes(arr);
   };
 
@@ -66,7 +58,8 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.splice(index, 0, newIndex);
-    arr.push(nodeData);
+    let data = { ...nodeData, level: parent.level + 1 };
+    arr.push(data);
     setNodes(arr);
   };
 
@@ -75,9 +68,7 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const element = parent.children[fromIndex];
     parent.children.splice(fromIndex, 1);
-    console.log(parent.children);
     parent.children.splice(toIndex, 0, element);
-    console.log(parent.children);
     setNodes(arr);
   };
 
@@ -88,24 +79,65 @@ export const FlowProvider = ({ children }) => {
     setNodes(arr);
   };
 
+  const removeChild = (parentIndex, index) => {
+    let arr = nodes;
+    arr.splice(index, 1);
+    const parent = arr[parentIndex];
+    const filteredChildren = parent.children.filter((i) => i !== index);
+    parent.children = filteredChildren;
+    setNodes(arr);
+  };
+
+  const removeEdge = (parentIndex, index) => {
+    let arr = nodes;
+    const parent = arr[parentIndex];
+    const filteredChildren = parent.children.filter((i) => i !== index);
+    parent.children = filteredChildren;
+    setNodes(arr);
+  };
+
+  const addEdge = (parentIndex, index) => {
+    let arr = nodes;
+    const parent = arr[parentIndex];
+    parent.children.push(index);
+    setNodes(arr);
+  };
+
+  const updateType = (index, newType) => {
+    let arr = nodes;
+    let curr = arr[index];
+    if (curr.type === newType) return;
+    if (
+      (newType !== TYPES[1].value || newType !== TYPES[0].value) &&
+      curr.children.length > 0
+    ) {
+      curr.children = [];
+    }
+    curr.type = newType;
+    setNodes(arr);
+  };
+
   return (
     <FlowContext.Provider
       value={{
         enabled,
         setEnabled,
-        isScratch,
-        setIsScratch,
         nodes: isEmpty ? [mainNode] : nodes,
         setNodes,
         edges,
         setEdges,
         isEmpty,
-        showGreetingModal: showGreetingModal,
+        showGreetingModal,
         setShowGreetingModal,
         addMain,
         addChild,
         addChildAtIndex,
+        moveChildToIndex,
         editData,
+        removeChild,
+        removeEdge,
+        addEdge,
+        updateType,
       }}
     >
       {children}
