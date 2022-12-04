@@ -1,15 +1,24 @@
-import { createContext, useCallback, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import TYPES from "../constants/types";
+import getTree from "../utils/tree";
+import useDraft from "../utils/useDraft";
 
 export const FlowContext = createContext({});
 
 const mainNode = {
   id: "0",
-  position: { x: 0, y: 0 },
-  data: {
-    label: "Main Greeting",
-  },
-  type: "main",
+  label: "Main Greeting",
+  level: 0,
+  index: 0,
+  value: TYPES[0].value,
+  type: 0,
+  children: [1],
 };
 
 export const FlowProvider = ({ children }) => {
@@ -18,14 +27,86 @@ export const FlowProvider = ({ children }) => {
     {
       id: "0",
       label: "Main Greeting",
-      children: [1, 2, 3],
+      text: "Welcome to Fieldpulse!",
       level: 0,
-      type: TYPES[0].value,
+      index: 0,
+      value: TYPES[0].value,
+      relIndex: 0,
+      type: 0,
+      nodeType: "main",
+      children: [1],
+      parent: null,
+    },
+    {
+      id: "1",
+      label: "English",
+      level: 1,
+      index: 1,
+      value: TYPES[1].value,
+      type: 1,
+      text: "Welcome to Fieldpulse!",
+      children: [3, 4],
+      nodeType: "node",
+      relIndex: 0,
+      parent: 0,
+      num: 1,
+    },
+    {
+      id: "2",
+      label: "Spanish",
+      level: 1,
+      index: 2,
+      value: TYPES[1].value,
+      type: 1,
+      text: "Welcome to Fieldpulse!",
+      children: [],
+      nodeType: "node",
+      relIndex: 1,
+      parent: null,
+      num: 2,
+    },
+    {
+      id: "3",
+      label: "hmm",
+      level: 2,
+      index: 3,
+      value: TYPES[3].value,
+      type: 1,
+      text: "Welcome to Fieldpulse!",
+      children: [],
+      nodeType: "node",
+      parent: 1,
+      num: 1,
+      relIndex: 0,
+    },
+    {
+      id: "4",
+      label: "English",
+      level: 2,
+      index: 4,
+      value: TYPES[3].value,
+      type: 1,
+      text: "Welcome to Fieldpulse!",
+      children: [],
+      nodeType: "node",
+      parent: 1,
+      num: 1,
+      relIndex: 1,
     },
   ]);
+  const [nodesWithEmpty, setNodesWithEmpty] = useState([]);
   const [edges, setEdges] = useState([]);
   const isEmpty = useMemo(() => true, []);
-  const [showGreetingModal, setShowGreetingModal] = useState(isEmpty);
+  const [flowNodes, setFlowNodes] = useState([]);
+  const [flowEdges, setFlowEdges] = useState([]);
+  const [random, setRandom] = useState();
+
+  const [currNode, setCurrNode] = useState(null);
+  const [showGreetingModal, setShowGreetingModal] = useState(false);
+
+  const { draft, dirty, changed, updateDraft, resetDraft } = useDraft({
+    ...currNode,
+  });
 
   const addMain = useCallback(
     (text) => {
@@ -48,9 +129,15 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.push(newIndex);
-    let data = { ...nodeData, level: parent.level + 1 };
+    let data = {
+      ...nodeData,
+      level: parent.level + 1,
+      id: newIndex,
+      parent: parentIndex,
+    };
     arr.push(data);
     setNodes(arr);
+    calcNodes();
   };
 
   const addChildAtIndex = (parentIndex, index, nodeData) => {
@@ -58,9 +145,15 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.splice(index, 0, newIndex);
-    let data = { ...nodeData, level: parent.level + 1 };
+    let data = {
+      ...nodeData,
+      level: parent.level + 1,
+      id: newIndex,
+      parent: parentIndex,
+    };
     arr.push(data);
     setNodes(arr);
+    calcNodes();
   };
 
   const moveChildToIndex = (parentIndex = 0, fromIndex = 0, toIndex = 1) => {
@@ -70,13 +163,24 @@ export const FlowProvider = ({ children }) => {
     parent.children.splice(fromIndex, 1);
     parent.children.splice(toIndex, 0, element);
     setNodes(arr);
+    calcNodes();
   };
 
-  const editData = (index, data) => {
+  // const editData = (index, data) => {
+  //   let arr = nodes;
+  //   let curr = arr[index];
+  //   curr.data = { ...curr.data, ...data };
+  //   setNodes(arr);
+  //   setRandom(Math.random() * 10000);
+  // };
+
+  const editData = () => {
     let arr = nodes;
-    let curr = arr[index];
-    curr.data = data;
+    arr[currNode.index] = { ...arr[currNode.index], ...draft };
     setNodes(arr);
+    resetDraft();
+    setCurrNode(nodes[currNode.index]);
+    calcNodes();
   };
 
   const removeChild = (parentIndex, index) => {
@@ -86,6 +190,7 @@ export const FlowProvider = ({ children }) => {
     const filteredChildren = parent.children.filter((i) => i !== index);
     parent.children = filteredChildren;
     setNodes(arr);
+    calcNodes();
   };
 
   const removeEdge = (parentIndex, index) => {
@@ -93,14 +198,18 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const filteredChildren = parent.children.filter((i) => i !== index);
     parent.children = filteredChildren;
+    delete arr[index].parent;
     setNodes(arr);
+    calcNodes();
   };
 
   const addEdge = (parentIndex, index) => {
     let arr = nodes;
     const parent = arr[parentIndex];
     parent.children.push(index);
+    arr[index].parent = parentIndex;
     setNodes(arr);
+    calcNodes();
   };
 
   const updateType = (index, newType) => {
@@ -115,16 +224,52 @@ export const FlowProvider = ({ children }) => {
     }
     curr.type = newType;
     setNodes(arr);
+    calcNodes();
   };
+
+  const removeNode = (index) => {
+    let arr = nodes;
+    let curr = arr[index];
+    for (let i = 0; i < curr.children.length; i++) {
+      let child = curr.children[i];
+      arr[child].parent = null;
+    }
+    if (curr.parent !== null) {
+      arr[curr.parent].children = arr[curr.parent].children.filter(
+        (node) => node !== index
+      );
+    }
+    arr.splice(index, 1);
+
+    setNodes(arr);
+    setCurrNode(null);
+    calcNodes();
+  };
+
+  useEffect(() => {
+    calcNodes();
+  }, [nodes]);
+
+  const calcNodes = () => {
+    const { nodes: formattedNodes, edges } = getTree(nodes);
+    setFlowNodes(formattedNodes);
+    setFlowEdges(edges);
+  };
+
+  const getNum = (index) => {
+    let curr = nodes[index];
+  };
+
+  // useEffect(() => {}, [currNode]);
 
   return (
     <FlowContext.Provider
       value={{
         enabled,
         setEnabled,
-        nodes: isEmpty ? [mainNode] : nodes,
+        nodes: flowNodes,
         setNodes,
-        edges,
+        edges: flowEdges,
         setEdges,
         isEmpty,
         showGreetingModal,
@@ -138,6 +283,15 @@ export const FlowProvider = ({ children }) => {
         removeEdge,
         addEdge,
         updateType,
+        currNode: { ...currNode, ...draft },
+        setCurrNode,
+        nodesWithEmpty,
+        setNodesWithEmpty,
+        nextId: nodes.length,
+        removeNode,
+        updateData: updateDraft,
+        dirty,
+        getNum,
       }}
     >
       {children}

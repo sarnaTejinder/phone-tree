@@ -5,4 +5,11 @@ const TYPES = [
   { label: "INFO", value: 3 },
 ];
 
+export const TWILIO_TYPES = {
+  "gather-input-on-call": 1,
+  "connect-call-to": 2,
+  "say-play": 3,
+  "split-based-on": -1,
+};
+
 export default TYPES;

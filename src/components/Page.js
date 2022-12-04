@@ -1,11 +1,11 @@
 import { useContext } from "react";
-import { Button, Container } from "react-bootstrap";
+import { Button } from "react-bootstrap";
+import { ReactFlowProvider } from "reactflow";
 import { FlowContext } from "../context/FlowContext";
 import Flow from "./Flow";
 
 const Page = () => {
   const { enabled, setEnabled } = useContext(FlowContext);
-
   return (
     <div
       style={{
@@ -14,10 +14,13 @@ const Page = () => {
         height: "100vh",
         justifyContent: "center",
         alignItems: "center",
+        position: "relative",
       }}
     >
       {enabled ? (
-        <Flow />
+        <ReactFlowProvider>
+          <Flow />
+        </ReactFlowProvider>
       ) : (
         <Button onClick={() => setEnabled(true)}>Enable Phone Tree</Button>
       )}

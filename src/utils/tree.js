@@ -1,209 +1,229 @@
+import TYPES from "../constants/types";
+
 const NODE_WIDTH = 200;
 
 class Node {
-  constructor(x, y, parent, prevSibling, dataNode) {
-    this.x = x;
-    this.y = x;
-    this.finalY = 0;
+  constructor(data) {
+    this.x = data.relIndex * 250;
+    this.y = data.level * 250;
+    this.finalX = 0;
     this.modifier = 0;
-    this.id = dataNode.id;
-    this.parent = parent;
-    this.prevSibling = prevSibling;
-    this.lines = [];
-    this.last = dataNode?.lines?.length === 0;
+    this.id = data.id;
+    this.parent = data.parent;
+    this.children = data.children;
+    this.last = data.value !== TYPES[0].value || data.value !== TYPES[1].value;
 
-    this.dataNode = dataNode;
+    this.data = data;
   }
 }
 
-function calculateInitialValues(node) {
-  for (let i = 0; i < node.lines.length; i++) {
-    calculateInitialValues(node.lines[i]);
-  }
+function calculateInitialValues(data) {
+  let nodes = data;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
 
-  if (node.prevSibling) {
-    node.x = node.prevSibling.x + 250;
-  } else {
-    node.x = 0;
-  }
+    if (node.children.length === 1) {
+      node.modifier = node.x;
+    } else if (node.children.length >= 2) {
+      let minX = nodes[node.children[0]].x;
+      let maxX = nodes[node.children[node.children.length - 1]].x;
 
-  if (node.lines.length === 1) {
-    node.modifier = node.x;
-  } else if (node.lines.length >= 2) {
-    let minY = Infinity;
-    let maxY = -minY;
-    for (let i = 0; i < node.lines.length; i++) {
-      minY = Math.min(minY, node.lines[i].x);
-      maxY = Math.max(maxY, node.lines[i].x);
+      node.modifier = node.x + (maxX - minX) / 2;
     }
-    node.modifier = node.x - (maxY - minY) / 2;
   }
+  return nodes;
 }
 
-function calculateFinalValues(node, modSum) {
-  node.finalY = node.x + modSum;
-  for (let i = 0; i < node.lines.length; i++) {
-    calculateFinalValues(node.lines[i], node.modifier + modSum);
+function calculateFinalValues(data) {
+  let nodes = data;
+  for (let i = 0; i < nodes.length; i++) {
+    let node = nodes[i];
+    node.x += node.modifier;
   }
+  return nodes;
 }
 
-function getContour(root, val, func) {
-  let nodes = [root];
+function getContour(node, val, func, dataNodes) {
+  let nodes = [node];
   while (nodes.length) {
     let node = nodes.shift();
-    nodes = nodes.concat(node.lines);
-    val = func(val, node.finalY);
+    // nodes = nodes.concat(node.lines);
+    if (node.children.length > 0) {
+      node.children.forEach((child) => {
+        nodes.push(dataNodes[child]);
+      });
+    }
+    val = func(val, node.x);
   }
   return val;
 }
 
-function shiftDown(root, shiftValue) {
-  let nodes = [root];
+function shiftRight(node, shiftValue, dataNodes) {
+  let nodes = [node];
   while (nodes.length) {
     let node = nodes.shift();
-    nodes = nodes.concat(node.lines);
-    node.finalY += shiftValue;
-  }
-}
-
-function fixNodeConflicts(root) {
-  for (let i = 0; i < root.lines.length; i++) {
-    fixNodeConflicts(root.lines[i]);
-  }
-  for (let i = 0; i < root.lines.length - 1; i++) {
-    // Get the bottom-most contour position of the current node
-    let botContour = getContour(root.lines[i], -Infinity, Math.max);
-    // Get the topmost contour position of the node underneath the current one
-    let topContour = getContour(root.lines[i + 1], Infinity, Math.min);
-    // console.log(botContour, topContour, root.lines[i + 1].dataNode.nickName);
-
-    if (Math.abs(topContour - botContour) <= 200 || botContour >= topContour) {
-      root.finalY += (botContour + 200 - topContour + 50) / root.lines.length;
-      shiftDown(root.lines[i + 1], botContour + 200 - topContour + 50);
+    if (node.children.length > 0) {
+      node.children.forEach((child) => {
+        nodes.push(dataNodes[child]);
+      });
     }
+    node.x += shiftValue;
   }
 }
 
-function buildTree(dataNode, parent, prevSibling, level) {
-  let root = new Node(level, 0, parent, prevSibling, dataNode);
-  for (let i = 0; i < dataNode?.lines?.length; i++) {
-    root.lines.push(
-      buildTree(
-        dataNode.lines[i],
-        root,
-        i >= 1 ? root.lines[i - 1] : null,
-        level + 1
-      )
-    );
-  }
-  return root;
-}
+function fixNodeConflicts(nodes) {
+  let arr = nodes;
+  arr.forEach((node) => {
+    for (let i = 0; i < node.children.length - 1; i++) {
+      let botContour = getContour(
+        arr[node.children[i]],
+        -Infinity,
+        Math.max,
+        arr
+      );
+      let topContour = getContour(
+        arr[node.children[i + 1]],
+        Infinity,
+        Math.min,
+        arr
+      );
 
-function updateYVals(root) {
-  let minYVal = Infinity;
-  let nodes = [root];
-  while (nodes.length) {
-    let node = nodes.shift();
-    nodes = nodes.concat(node.lines);
-    if (node.finalY < minYVal) {
-      minYVal = node.finalY;
-    }
-  }
-
-  nodes = [root];
-  while (nodes.length) {
-    let node = nodes.shift();
-    nodes = nodes.concat(node.lines);
-    node.finalY += Math.abs(minYVal);
-  }
-}
-
-function assignSiblingCounts(root) {
-  let nodes = [root, null];
-  let level = [];
-
-  let siblings = 0;
-  while (nodes.length) {
-    let node = nodes.shift();
-    if (!node) {
-      for (let i = 0; i < level.length; i++) {
-        level[i].siblings = siblings;
+      if (
+        Math.abs(topContour - botContour) <= 200 ||
+        botContour >= topContour
+      ) {
+        node.x += (botContour + 200 - topContour + 50) / node.children.length;
+        shiftRight(
+          arr[node.children[i + 1]],
+          botContour + 200 - topContour + 50,
+          arr
+        );
       }
-      level = [];
-      siblings = 0;
-      if (nodes.length) {
-        nodes.push(null);
-      }
-    } else {
-      nodes = nodes.concat(node.lines);
-      siblings++;
-      level.push(node);
     }
-  }
+  });
+
+  return arr;
 }
 
-export const convertToList = (root) => {
-  let nodes = [root];
+function updateXVals(data) {
+  let nodes = data;
+  let minXVal = Infinity;
+  nodes.forEach((node) => {
+    if (node.x < minXVal) {
+      minXVal = node.x;
+    }
+  });
+
+  nodes.forEach((node) => {
+    node.x += Math.abs(minXVal);
+  });
+
+  return nodes;
+}
+
+export const convert = (list) => {
+  let nodes = [];
   let edges = [];
-  let finalNodes = [];
 
-  while (nodes.length) {
-    let node = nodes.shift();
-    nodes = nodes.concat(node.lines);
-    const { id, y, finalY, dataNode } = node;
-    const { value, nickName, num } = dataNode;
-    finalNodes.push({
-      id: JSON.stringify(id),
+  for (let i = 0; i < list.length; i++) {
+    const node = list[i];
+    const { id, x, y, data } = node;
+    nodes.push({
+      id: id,
       position: {
-        x: finalY,
-        y: y * 250,
+        x,
+        y,
       },
-      data: {
-        value,
-        label: nickName,
-        num,
-        last: node.last,
-        data: node.dataNode,
-      },
-      type: node.dataNode.type,
+      data: { ...data, label: `${x},${y}` },
+      type: data.nodeType,
     });
-    if (node.parent) {
+    if (node.parent !== null) {
       edges.push({
-        id: `e${node.parent.id}-${node.id}`,
-        source: `${node.parent.id}`,
+        id: `e${node.parent}-${node.id}`,
+        source: `${node.parent}`,
         target: `${node.id}`,
         animated: true,
-        type: node.dataNode.type === "new" ? "" : "buttonedge",
+        type: data.nodeType === "empty" ? "" : "buttonedge",
       });
     }
   }
-  return { nodes: finalNodes, edges };
+
+  return { nodes, edges };
 };
 
-const fixMain = (root) => {
-  let minYVal = Infinity;
-  let maxYVal = -Infinity;
-  for (let i = 0; i < root.lines.length; i++) {
-    const node = root.lines[i];
-    if (node.finalY < minYVal) {
-      minYVal = node.finalY;
-    }
-    if (node.finalY > maxYVal) {
-      maxYVal = node.finalY;
+const fixMain = (data) => {
+  let nodes = data;
+  let curr = nodes[0];
+  if (curr.children.length > 1) {
+    curr.x =
+      (nodes[curr.children[0]].x +
+        nodes[curr.children[curr.children.length - 1]].x) /
+      2;
+  } else if (curr.children.length === 1) {
+    curr.x = nodes[curr.children[0]].x;
+  }
+  return nodes;
+};
+
+export const calculateDimensions = (data) => {
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+
+  for (let i = 0; i < data.length; i++) {
+    let curr = data[i];
+
+    if (
+      curr.data.level === 0 ||
+      (curr.data.level !== 0 && curr.parent !== null)
+    ) {
+      let position = curr.position;
+
+      if (position.x < minX) {
+        minX = position.x;
+      }
+      if (position.x > maxX) {
+        maxX = position.x;
+      }
+
+      if (position.y < minY) {
+        minY = position.y;
+      }
+      if (position.y > maxY) {
+        maxY = position.y;
+      }
     }
   }
-  root.finalY = (minYVal + maxYVal) / 2;
+  return { minX, maxX, minY, maxY };
 };
 
-export function getTree(data) {
-  let root = buildTree(data, null, null, 0, 0);
+const fixNoParentNodes = (nodes) => {
+  let arr = nodes;
+  const { maxX } = calculateDimensions(arr);
+  for (let i = 0; i < arr.length; i++) {
+    let curr = arr[i];
+    if (curr.data.level !== 0 && curr.data.parent === null) {
+      curr.position.x += maxX + 250 - curr.position.x;
+    }
+  }
+  return arr;
+};
 
-  calculateInitialValues(root);
-  calculateFinalValues(root, 0);
-  updateYVals(root);
-  fixNodeConflicts(root);
-  assignSiblingCounts(root);
+export default function getTree(data) {
+  let dataNodes = [];
+  for (let i = 0; i < data.length; i++) {
+    dataNodes.push(new Node(data[i]));
+  }
 
-  fixMain(root);
-  return root;
+  dataNodes = calculateInitialValues(dataNodes);
+  dataNodes = calculateFinalValues(dataNodes);
+  dataNodes = updateXVals(dataNodes);
+  dataNodes = fixNodeConflicts(dataNodes);
+
+  dataNodes = fixMain(dataNodes);
+  const { nodes, edges } = convert(dataNodes);
+  const fixedNodes = fixNoParentNodes(nodes);
+
+  return { nodes: fixedNodes, edges };
 }
