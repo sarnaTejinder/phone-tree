@@ -28,7 +28,7 @@ function calculateInitialValues(data) {
       let minX = nodes[node.children[0]].x;
       let maxX = nodes[node.children[node.children.length - 1]].x;
 
-      node.modifier = node.x + (maxX - minX) / 2;
+      node.modifier = (maxX - minX) / 2;
     }
   }
   return nodes;
@@ -38,7 +38,14 @@ function calculateFinalValues(data) {
   let nodes = data;
   for (let i = 0; i < nodes.length; i++) {
     let node = nodes[i];
-    node.x += node.modifier;
+    if (node.parent !== null) {
+      let parent = data[node.parent];
+      if (parent.children.length === 1) {
+        node.x = parent.x;
+      } else {
+        node.x = node.x - parent.modifier;
+      }
+    }
   }
   return nodes;
 }
@@ -47,7 +54,6 @@ function getContour(node, val, func, dataNodes) {
   let nodes = [node];
   while (nodes.length) {
     let node = nodes.shift();
-    // nodes = nodes.concat(node.lines);
     if (node.children.length > 0) {
       node.children.forEach((child) => {
         nodes.push(dataNodes[child]);
@@ -59,14 +65,21 @@ function getContour(node, val, func, dataNodes) {
 }
 
 function shiftRight(node, shiftValue, dataNodes) {
-  let nodes = [node];
-  while (nodes.length) {
-    let node = nodes.shift();
-    if (node.children.length > 0) {
-      node.children.forEach((child) => {
-        nodes.push(dataNodes[child]);
-      });
+  if (node.children.length > 0) {
+    let nodes = [];
+    node.children.forEach((child) => {
+      nodes.push(dataNodes[child]);
+    });
+    while (nodes.length) {
+      let node = nodes.shift();
+      if (node.children.length > 0) {
+        node.children.forEach((child) => {
+          nodes.push(dataNodes[child]);
+        });
+      }
+      node.x += shiftValue;
     }
+  } else {
     node.x += shiftValue;
   }
 }
@@ -88,6 +101,8 @@ function fixNodeConflicts(nodes) {
         arr
       );
 
+      let parentX = arr[node.children[i + 1]].x;
+
       if (
         Math.abs(topContour - botContour) <= 200 ||
         botContour >= topContour
@@ -98,6 +113,10 @@ function fixNodeConflicts(nodes) {
           botContour + 200 - topContour + 50,
           arr
         );
+      }
+      if (Math.abs(parentX - botContour) <= 200 || botContour >= parentX) {
+        arr[node.children[i + 1]].x +=
+          (botContour + 200 - topContour + 50) / node.children.length;
       }
     }
   });
@@ -134,8 +153,8 @@ export const convert = (list) => {
         x,
         y,
       },
-      data: { ...data, label: `${x},${y}` },
-      type: data.nodeType,
+      data,
+      type: data.type,
     });
     if (node.parent !== null) {
       edges.push({
@@ -143,7 +162,7 @@ export const convert = (list) => {
         source: `${node.parent}`,
         target: `${node.id}`,
         animated: true,
-        type: data.nodeType === "empty" ? "" : "buttonedge",
+        type: data.type === "empty" ? "" : "buttonedge",
       });
     }
   }
@@ -152,6 +171,7 @@ export const convert = (list) => {
 };
 
 const fixMain = (data) => {
+  if (data.length === 0) return data;
   let nodes = data;
   let curr = nodes[0];
   if (curr.children.length > 1) {
@@ -218,10 +238,10 @@ export default function getTree(data) {
 
   dataNodes = calculateInitialValues(dataNodes);
   dataNodes = calculateFinalValues(dataNodes);
-  dataNodes = updateXVals(dataNodes);
-  dataNodes = fixNodeConflicts(dataNodes);
+  // dataNodes = updateXVals(dataNodes);
+  // dataNodes = fixNodeConflicts(dataNodes);
 
-  dataNodes = fixMain(dataNodes);
+  // dataNodes = fixMain(dataNodes);
   const { nodes, edges } = convert(dataNodes);
   const fixedNodes = fixNoParentNodes(nodes);
 

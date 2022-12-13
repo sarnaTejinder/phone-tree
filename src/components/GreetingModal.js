@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
+import { FlowContext } from "../context/FlowContext";
 
 const GreetingModal = ({ onClose, show }) => {
   const [greeting, setGreeting] = useState("");
-  const handleClose = () => {
-    onClose();
+  const { addMain, setShowGreetingModal } = useContext(FlowContext);
+
+  const handleSubmit = () => {
+    addMain(greeting);
+    setShowGreetingModal(false);
   };
 
-  const handleSubmit = () => {};
-
   return (
-    <Modal size="lg" centered show={show} onHide={handleClose}>
-      <Modal.Header closeButton>
+    <Modal size="md" centered show={show}>
+      <Modal.Header>
         <Modal.Title>Main Greeting</Modal.Title>
       </Modal.Header>
       <Modal.Body>

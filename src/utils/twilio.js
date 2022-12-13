@@ -1,28 +1,33 @@
+import TEAM_MEMBERS from "../constants/teamMembers";
 import { TWILIO_TYPES } from "../constants/types";
 
 export const convertToTwilioFormat = (nodes) => {
   let i = 0;
-  let formatedNodes = [];
+  let formattedNodes = [];
+
   while (i < nodes.length) {
     let curr = nodes[i];
-    switch (curr.type) {
+
+    switch (curr.value) {
       case 0:
-        formatedNodes.push(convertOption(curr));
+        formattedNodes.push(...convertOption(nodes, curr));
         break;
       case 1:
-        formatedNodes.push(convertOption(curr));
+        formattedNodes.push(...convertOption(nodes, curr));
         break;
       case 2:
-        formatedNodes.push(convertCallTo(curr));
+        formattedNodes.push(convertCallTo(curr));
         break;
       case 3:
-        formatedNodes.push(convertBotMessage(curr));
+        formattedNodes.push(convertBotMessage(curr));
         break;
       default:
         break;
     }
+    i++;
   }
-  return formatedNodes;
+  navigator.clipboard.writeText(JSON.stringify(formattedNodes));
+  return formattedNodes;
 };
 
 const snakeCase = (string) => {
@@ -45,13 +50,11 @@ const convertOption = (nodes, node) => {
   let transitions = [];
   if (node.children.length > 0) {
     for (let i = 0; i < node.children.length; i++) {
-      const currNode = nodes[i];
+      const currNode = nodes[node.children[i]];
       const currName = snakeCase(currNode.label);
-      childrenString.concat(
-        `Press ${i + 1} for ${currNode.label}${
-          i === node.children.length - 1 ? "." : ","
-        }`
-      );
+      childrenString += `Press ${i + 1} for ${currNode.label}${
+        i === node.children.length - 1 ? "." : ", "
+      }`;
       transitions.push({
         next: currName,
         event: "match",
@@ -67,7 +70,7 @@ const convertOption = (nodes, node) => {
     }
   }
 
-  if (node.parent) {
+  if (node.parent !== null) {
     const parentName = snakeCase(nodes[node.parent].label);
     transitions.push({
       next: parentName,
@@ -148,7 +151,7 @@ const convertCallTo = (node) => {
     name,
     label: node.label,
     type: "connect-call-to",
-    user_id: node.user.id,
+    user_id: node.user,
     transitions: [
       {
         event: "callCompleted",
@@ -161,7 +164,7 @@ const convertCallTo = (node) => {
       caller_id: "{{contact.channel.address}}",
 
       noun: "number",
-      to: node.user.number,
+      to: TEAM_MEMBERS[node.user].number,
       timeout: 30,
     },
   };

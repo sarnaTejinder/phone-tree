@@ -10,33 +10,70 @@ const CustomForm = ({ deleteEmptyNode, setCenter }) => {
   const [text, setText] = useState("");
   const [label, setLabel] = useState("");
 
-  const { currNode, removeNode, updateData, dirty, editData, nodes } =
-    useContext(FlowContext);
+  const {
+    currNode,
+    removeNode,
+    updateData,
+    dirty,
+    editData,
+    addChild,
+    setCurrNode,
+    nodes,
+  } = useContext(FlowContext);
   const optionRef = useRef();
 
   const reset = (data) => {
-    setOptionSelected(JSON.stringify(1));
-    setMemberSelected(data?.user || 0);
+    setOptionSelected(JSON.stringify(data?.value) || "1");
+    setMemberSelected(JSON.stringify(data?.user) || 0);
     setText(data?.text || "");
     setLabel(data?.label || "");
   };
 
+  const clear = () => {
+    setOptionSelected("1");
+    setMemberSelected("0");
+    setText("");
+    setLabel("");
+  };
+
   useEffect(() => {
     reset(currNode);
-  }, [currNode]);
+  }, [currNode.index]);
 
-  const isMain = useMemo(() => currNode?.type === 0, [currNode]);
+  const isMain = useMemo(() => currNode?.value === TYPES[0].value, [currNode]);
+  const isNew = useMemo(() => !currNode?.index, [currNode]);
 
   const onSubmit = () => {
     if (currNode !== null) {
-      editData();
+      if (currNode.type !== "empty") {
+        editData();
+      }
+      if (currNode.type === "empty" && typeof currNode.id === "string") {
+        editData({
+          type: "node",
+          value: parseInt(optionSelected),
+          text,
+          label,
+          user: parseInt(memberSelected),
+          num: currNode.relIndex + 1,
+        });
+      } else if (currNode.type === "empty" && typeof currNode.id !== "string")
+        addChild(currNode.parent, currNode, {
+          value: parseInt(optionSelected),
+          text,
+          label,
+          user: parseInt(memberSelected),
+          type: "node",
+        });
     }
+    clear();
   };
 
   const onDelete = () => {
-    currNode.type === "empty"
+    currNode.type === "empty" && typeof currNode.id !== "string"
       ? deleteEmptyNode(currNode.index)
       : removeNode(currNode.index);
+    clear();
     setCenter();
   };
 
@@ -46,7 +83,7 @@ const CustomForm = ({ deleteEmptyNode, setCenter }) => {
         ref={optionRef}
         onInput={() => {
           setOptionSelected(optionRef.current.value);
-          updateData({ type: optionRef.current.value });
+          updateData({ value: optionRef.current.value });
         }}
         value={optionSelected}
         disabled={isMain}
@@ -55,7 +92,7 @@ const CustomForm = ({ deleteEmptyNode, setCenter }) => {
           <option value={TYPES[0].value}>Main Greeting</option>
         ) : (
           TYPES.filter((i) => i.value !== 0).map((type, i) => (
-            <option value={type.value} key={type.value}>
+            <option value={type.value} key={`${i}-${type.label}`}>
               {type.label}
             </option>
           ))
@@ -94,10 +131,11 @@ const CustomForm = ({ deleteEmptyNode, setCenter }) => {
             value={memberSelected}
             onInput={(e) => {
               setMemberSelected(e.target.value);
+              updateData({ user: e.target.value });
             }}
           >
             {TEAM_MEMBERS.map((member, i) => (
-              <option value={member.id} key={member.phone}>
+              <option value={i} key={`${i}-${member.phone}`}>
                 {member.name}
               </option>
             ))}
@@ -109,7 +147,11 @@ const CustomForm = ({ deleteEmptyNode, setCenter }) => {
         className="mt-3"
       >
         <Button variant="primary" disabled={!dirty} onClick={onSubmit}>
-          {currNode ? (currNode?.type === "empty" ? "Add" : "Save") : "Add"}
+          {currNode.index || currNode.index === 0
+            ? currNode?.type === "empty"
+              ? "Add"
+              : "Save"
+            : "Add"}
         </Button>
         {currNode && (
           <Button variant="danger" onClick={onDelete}>

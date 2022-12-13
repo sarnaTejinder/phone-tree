@@ -25,6 +25,7 @@ import EmptyNode from "./EmptyNode";
 import GreetingModal from "./GreetingModal";
 import MainNode from "./MainNode";
 import Node from "./Node";
+import NodesLogger from "./NodesLogger";
 import SidePanel from "./SidePanel";
 
 const nodeTypes = { main: MainNode, empty: EmptyNode, node: Node };
@@ -41,6 +42,8 @@ const Flow = () => {
     setEdges: setEdgesCtx,
     nextId,
     setCurrNode,
+    hasEmpty,
+    random: initRandom,
   } = useContext(FlowContext);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -48,17 +51,16 @@ const Flow = () => {
   const [random, setRandom] = useState();
 
   useEffect(() => {
-    // console.log("ui", initialNodes[0]?.data?.text);
     setNodes(initialNodes);
     setRandom(Math.random() * 10000);
-  }, [initialNodes, setNodes]);
+  }, [initialNodes, setNodes, initRandom]);
 
   useEffect(() => {
     setEdges(initialEdges);
     setRandom(Math.random() * 10000);
-  }, [initialEdges, setEdges]);
+  }, [initialEdges, setEdges, initRandom]);
 
-  const { project, fitView, getIntersectingNodes } = useReactFlow();
+  const { project, fitView, getIntersectingNodes, setCenter } = useReactFlow();
   const reactFlowWrapper = useRef(null);
   const connectingNodeId = useRef(null);
 
@@ -76,7 +78,7 @@ const Flow = () => {
       // if (!reactFlowWrapper.current) return;
       const targetIsPane = event.target.classList.contains("react-flow__pane");
 
-      if (targetIsPane) {
+      if (targetIsPane && !hasEmpty) {
         // we need to remove the wrapper bounds, in order to get the correct position
         const { top, left } = reactFlowWrapper.current.getBoundingClientRect();
         const id = `${nextId}`;
@@ -90,6 +92,7 @@ const Flow = () => {
           }),
           data: {
             index: nextId,
+            parent: JSON.parse(connectingNodeId.current),
             type: "empty",
           },
           type: "empty",
@@ -107,10 +110,11 @@ const Flow = () => {
         setCurrNode({
           index: nextId,
           type: "empty",
+          parent: JSON.parse(connectingNodeId.current),
         });
       }
     },
-    [project, nextId, setEdges, setNodes, setCurrNode]
+    [project, nextId, setEdges, setNodes, setCurrNode, hasEmpty]
   );
 
   const deleteEmptyNode = (index) => {
@@ -140,16 +144,33 @@ const Flow = () => {
     );
   }, []);
 
+  useEffect(() => {
+    let t = setTimeout(() => {
+      fitView({ padding: 0.2, duration: 800 });
+    }, 200);
+
+    return () => clearTimeout(t);
+    // if (!isEmpty) {
+    //   setCenter(nodes[0]?.position?.x || 0);
+    // } else {
+    //   setCenter(0);
+    // }
+  }, [nodes, edges, fitView, initRandom]);
+
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <GreetingModal
         onClose={() => setShowGreetingModal(false)}
         show={showGreetingModal}
       />
-      <SidePanel deleteEmptyNode={deleteEmptyNode} setCenter={fitView} />
+      <NodesLogger />
+      <SidePanel
+        deleteEmptyNode={deleteEmptyNode}
+        setCenter={() => fitView({ duration: 800 })}
+      />
       <div style={{ height: "100%", width: "100%" }} ref={reactFlowWrapper}>
         <ReactFlow
-          style={{ background: "#393E46" }}
+          style={{ background: "#E5E5E5" }}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -166,11 +187,11 @@ const Flow = () => {
           // snapToGrid
           onEdgeUpdate={onEdgeUpdate}
           fitView
+          deleteKeyCode={null}
         >
           <Panel position="top-center">
             <Control />
           </Panel>
-          <Background />
           <Controls />
         </ReactFlow>
       </div>

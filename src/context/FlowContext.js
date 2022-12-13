@@ -6,10 +6,86 @@ import {
   useState,
 } from "react";
 import TYPES from "../constants/types";
+import { getLayoutedElements } from "../utils/getLayoutedElements";
 import getTree from "../utils/tree";
+import { convertToTwilioFormat } from "../utils/twilio";
 import useDraft from "../utils/useDraft";
 
 export const FlowContext = createContext({});
+
+const init = [
+  {
+    id: "0",
+    label: "Main Greeting",
+    text: "Hello",
+    level: 0,
+    index: 0,
+    value: 0,
+    type: "main",
+    children: [1, 2, 3],
+    parent: null,
+  },
+  {
+    children: [],
+    index: 1,
+    parent: 0,
+    value: 1,
+    level: 1,
+    id: "1",
+    text: "",
+    label: "1",
+    user: 0,
+    type: "node",
+  },
+  {
+    type: "node",
+    level: 1,
+    id: "2",
+    parent: 0,
+    index: 2,
+    children: [],
+    value: "1",
+    text: "",
+    label: "2",
+    user: 0,
+  },
+  {
+    type: "node",
+    level: 1,
+    id: "3",
+    parent: 0,
+    index: 3,
+    children: [],
+    value: "1",
+    text: "",
+    label: "3",
+    user: 0,
+  },
+];
+
+const getEdges = (data) => {
+  let nodes = data;
+  let edges = [];
+  for (let i = 0; i < nodes.length; i++) {
+    let node = nodes[i];
+    if (node.children.length > 0) {
+      for (let j = 0; j < node.children.length; j++) {
+        let child = nodes[node.children[j]];
+        if (child) {
+          child.num = j + 1;
+          edges.push({
+            id: `e${node.index}-${child.index}`,
+            source: `${node.index}`,
+            target: `${child.index}`,
+            type: "buttonedge",
+            animated: true,
+          });
+        }
+      }
+    }
+  }
+  return { nodes, edges };
+};
 
 const mainNode = {
   id: "0",
@@ -23,90 +99,22 @@ const mainNode = {
 
 export const FlowProvider = ({ children }) => {
   const [enabled, setEnabled] = useState(true);
-  const [nodes, setNodes] = useState([
-    {
-      id: "0",
-      label: "Main Greeting",
-      text: "Welcome to Fieldpulse!",
-      level: 0,
-      index: 0,
-      value: TYPES[0].value,
-      relIndex: 0,
-      type: 0,
-      nodeType: "main",
-      children: [1],
-      parent: null,
-    },
-    {
-      id: "1",
-      label: "English",
-      level: 1,
-      index: 1,
-      value: TYPES[1].value,
-      type: 1,
-      text: "Welcome to Fieldpulse!",
-      children: [3, 4],
-      nodeType: "node",
-      relIndex: 0,
-      parent: 0,
-      num: 1,
-    },
-    {
-      id: "2",
-      label: "Spanish",
-      level: 1,
-      index: 2,
-      value: TYPES[1].value,
-      type: 1,
-      text: "Welcome to Fieldpulse!",
-      children: [],
-      nodeType: "node",
-      relIndex: 1,
-      parent: null,
-      num: 2,
-    },
-    {
-      id: "3",
-      label: "hmm",
-      level: 2,
-      index: 3,
-      value: TYPES[3].value,
-      type: 1,
-      text: "Welcome to Fieldpulse!",
-      children: [],
-      nodeType: "node",
-      parent: 1,
-      num: 1,
-      relIndex: 0,
-    },
-    {
-      id: "4",
-      label: "English",
-      level: 2,
-      index: 4,
-      value: TYPES[3].value,
-      type: 1,
-      text: "Welcome to Fieldpulse!",
-      children: [],
-      nodeType: "node",
-      parent: 1,
-      num: 1,
-      relIndex: 1,
-    },
-  ]);
+  const [nodes, setNodes] = useState(init);
   const [nodesWithEmpty, setNodesWithEmpty] = useState([]);
   const [edges, setEdges] = useState([]);
-  const isEmpty = useMemo(() => true, []);
+  const isEmpty = useMemo(() => nodes.length === 0, [nodes]);
   const [flowNodes, setFlowNodes] = useState([]);
   const [flowEdges, setFlowEdges] = useState([]);
   const [random, setRandom] = useState();
 
   const [currNode, setCurrNode] = useState(null);
-  const [showGreetingModal, setShowGreetingModal] = useState(false);
+  const [showGreetingModal, setShowGreetingModal] = useState(isEmpty);
 
   const { draft, dirty, changed, updateDraft, resetDraft } = useDraft({
     ...currNode,
   });
+
+  const [hasEmpty, setHasEmpty] = useState(false);
 
   const addMain = useCallback(
     (text) => {
@@ -115,27 +123,42 @@ export const FlowProvider = ({ children }) => {
         id: "0",
         label: "Main Greeting",
         text,
-        children: [],
         level: 0,
+        index: 0,
+        value: TYPES[0].value,
+        type: 0,
         type: "main",
+        children: [],
+        parent: null,
       });
       setNodes(arr);
+      calcNodes();
     },
     [nodes]
   );
 
-  const addChild = (parentIndex, nodeData) => {
+  console.log(nodes);
+
+  const addChild = (parentIndex, nodeData, incomingData) => {
     let arr = nodes;
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.push(newIndex);
     let data = {
+      children: [],
       ...nodeData,
       level: parent.level + 1,
-      id: newIndex,
+      id: JSON.stringify(newIndex),
       parent: parentIndex,
+      index: newIndex,
+      value: TYPES[1].value,
+      num: parent.children.length,
+      type: "node",
+      ...incomingData,
     };
     arr.push(data);
+    arr = calcRelIndex(parentIndex, arr);
+    setCurrNode(data);
     setNodes(arr);
     calcNodes();
   };
@@ -145,13 +168,19 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const newIndex = arr.length;
     parent.children.splice(index, 0, newIndex);
+
     let data = {
       ...nodeData,
       level: parent.level + 1,
-      id: newIndex,
+      id: JSON.stringify(newIndex),
       parent: parentIndex,
+      index: newIndex,
+      children: [],
     };
     arr.push(data);
+    arr = calcRelIndex(parentIndex, arr);
+    // arr.splice();
+    setCurrNode(data);
     setNodes(arr);
     calcNodes();
   };
@@ -162,6 +191,7 @@ export const FlowProvider = ({ children }) => {
     const element = parent.children[fromIndex];
     parent.children.splice(fromIndex, 1);
     parent.children.splice(toIndex, 0, element);
+    arr = calcRelIndex(parentIndex, arr);
     setNodes(arr);
     calcNodes();
   };
@@ -174,9 +204,13 @@ export const FlowProvider = ({ children }) => {
   //   setRandom(Math.random() * 10000);
   // };
 
-  const editData = () => {
+  const editData = (data) => {
     let arr = nodes;
-    arr[currNode.index] = { ...arr[currNode.index], ...draft };
+    arr[currNode.index] = { ...arr[currNode.index], ...draft, ...data };
+    let newCurrNode = { ...arr[currNode.index], ...draft, ...data };
+    if (newCurrNode.parent !== null) {
+      arr = calcRelIndex(currNode.parent, arr);
+    }
     setNodes(arr);
     resetDraft();
     setCurrNode(nodes[currNode.index]);
@@ -189,6 +223,8 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     const filteredChildren = parent.children.filter((i) => i !== index);
     parent.children = filteredChildren;
+    arr = calcRelIndex(parentIndex, arr);
+
     setNodes(arr);
     calcNodes();
   };
@@ -199,6 +235,8 @@ export const FlowProvider = ({ children }) => {
     const filteredChildren = parent.children.filter((i) => i !== index);
     parent.children = filteredChildren;
     delete arr[index].parent;
+    arr = calcRelIndex(parentIndex, arr);
+
     setNodes(arr);
     calcNodes();
   };
@@ -208,6 +246,8 @@ export const FlowProvider = ({ children }) => {
     const parent = arr[parentIndex];
     parent.children.push(index);
     arr[index].parent = parentIndex;
+    arr = calcRelIndex(parentIndex, arr);
+
     setNodes(arr);
     calcNodes();
   };
@@ -240,7 +280,7 @@ export const FlowProvider = ({ children }) => {
       );
     }
     arr.splice(index, 1);
-
+    // arr = calcRelIndex(curr.parent, arr);
     setNodes(arr);
     setCurrNode(null);
     calcNodes();
@@ -251,9 +291,13 @@ export const FlowProvider = ({ children }) => {
   }, [nodes]);
 
   const calcNodes = () => {
-    const { nodes: formattedNodes, edges } = getTree(nodes);
+    const { nodes: n, edges: e } = getEdges(nodes);
+    const { nodes: formattedNodes, edges } = getLayoutedElements(n, e);
+
+    setHasEmpty(nodes.filter((i) => i.type === "empty").length > 0);
     setFlowNodes(formattedNodes);
     setFlowEdges(edges);
+    setRandom(Math.random() * 10000);
   };
 
   const getNum = (index) => {
@@ -261,6 +305,20 @@ export const FlowProvider = ({ children }) => {
   };
 
   // useEffect(() => {}, [currNode]);
+
+  const getJson = () => {
+    convertToTwilioFormat(nodes);
+  };
+
+  const calcRelIndex = (parentIndex, arr) => {
+    let parent = arr[parentIndex];
+    for (let i = 0; i < parent.children.length; i++) {
+      let curr = arr[parent.children[i]];
+      if (curr) curr.num = i + 1;
+    }
+    parent?.children?.sort((a, b) => a < b);
+    return arr;
+  };
 
   return (
     <FlowContext.Provider
@@ -292,6 +350,9 @@ export const FlowProvider = ({ children }) => {
         updateData: updateDraft,
         dirty,
         getNum,
+        getJson,
+        hasEmpty,
+        random,
       }}
     >
       {children}

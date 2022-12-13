@@ -75,7 +75,7 @@ function fixNodeConflicts(root) {
     let botContour = getContour(root.lines[i], -Infinity, Math.max);
     // Get the topmost contour position of the node underneath the current one
     let topContour = getContour(root.lines[i + 1], Infinity, Math.min);
-    //  (botContour, topContour, root.lines[i + 1].dataNode.label);
+    // console.log(botContour, topContour, root.lines[i + 1].dataNode.nickName);
 
     if (Math.abs(topContour - botContour) <= 200 || botContour >= topContour) {
       root.finalY += (botContour + 200 - topContour + 50) / root.lines.length;
@@ -185,8 +185,7 @@ const convertToList = (root) => {
   while (nodes.length) {
     let node = nodes.shift();
     nodes = nodes.concat(node.lines);
-    const { id, y, finalY, dataNode } = node;
-    const { value, label, num } = dataNode;
+    const { id, x, y, finalY, dataNode } = node;
     finalNodes.push({
       id: JSON.stringify(id),
       position: {
@@ -194,12 +193,10 @@ const convertToList = (root) => {
         y: y * 250,
       },
       data: {
-        value,
-        label: label,
-        num,
         last: node.last,
+        ...dataNode,
       },
-      type: node.dataNode.type,
+      type: dataNode.type,
     });
     if (node.parent) {
       edges.push({
@@ -207,7 +204,7 @@ const convertToList = (root) => {
         source: `${node.parent.id}`,
         target: `${node.id}`,
         animated: true,
-        type: node.dataNode.type === "new" ? "" : "buttonedge",
+        type: dataNode.type === "new" ? "" : "buttonedge",
       });
     }
   }
@@ -226,102 +223,21 @@ const fixMain = (root) => {
       maxYVal = node.finalY;
     }
   }
-  root.finalY = (minYVal + maxYVal) / 2;
+  if (root.lines.length > 0) root.finalY = (minYVal + maxYVal) / 2;
 };
 
-function drawTree(data) {
-  let root = buildTree(data, null, null, 0, 0);
+export default function drawTree(data) {
+  if (Object.keys(data).length > 0) {
+    let root = buildTree(data, null, null, 0, 0);
 
-  calculateInitialValues(root);
-  // calculateFinalValues(root, 0);
-  // updateYVals(root);
-  // fixNodeConflicts(root);
-  // assignSiblingCounts(root);
+    calculateInitialValues(root);
+    calculateFinalValues(root, 0);
+    updateYVals(root);
+    fixNodeConflicts(root);
 
-  // fixMain(root);
-  return convertToList(root);
+    fixMain(root);
+    return convertToList(root);
+  } else {
+    return { node: [], edges: [] };
+  }
 }
-
-const demo = {
-  value: 1,
-  id: 0,
-  label: "Main Greeting",
-  lines: [
-    {
-      value: 1,
-      num: 1,
-      label: "English",
-      id: 1,
-      lines: [
-        {
-          value: 2,
-          num: 1,
-          label: "Dev",
-          user: "Tejinder",
-          phone: "(215) 709-8523",
-          id: 2,
-          lines: [],
-        },
-        {
-          value: 2,
-          num: 2,
-          label: "Tester",
-          user: "Yevgen",
-          phone: "(295) 770-8139",
-          id: 3,
-          lines: [],
-        },
-        {
-          value: 1,
-          num: 3,
-          label: "Support",
-          id: 4,
-          lines: [
-            {
-              value: 3,
-              num: 1,
-              label: "Office Hours",
-              text: "9:00 AM to 5:00 PM",
-              id: 5,
-              lines: [],
-            },
-            {
-              value: 3,
-              num: 2,
-              label: "Office Location",
-              text: "4514 Travis St Suite 200, Dallas, TX 75205, United States",
-              id: 6,
-              lines: [],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      value: 1,
-      num: 2,
-      label: "Spanish",
-      id: 7,
-      lines: [
-        {
-          value: 3,
-          num: 1,
-          label: "Office Hours",
-          text: "9:00 AM to 5:00 PM",
-          id: 8,
-          lines: [],
-        },
-        {
-          value: 3,
-          num: 2,
-          label: "Office Location",
-          text: "4514 Travis St Suite 200, Dallas, TX 75205, United States",
-          id: 9,
-          lines: [],
-        },
-      ],
-    },
-  ],
-};
-
-JSON.stringify(drawTree(demo).nodes);

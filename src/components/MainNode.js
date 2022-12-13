@@ -3,14 +3,18 @@ import { Handle, Position } from "reactflow";
 import TYPES from "../constants/types";
 import { FlowContext } from "../context/FlowContext";
 
-const MainNode = ({ data, id }) => {
-  const { setShowGreetingModal, setCurrNode, currNode } =
+const MainNode = ({ id, data }) => {
+  const { setShowGreetingModal, setCurrNode, currNode, addChild } =
     useContext(FlowContext);
 
   const label =
     data.value === TYPES[0].value && data.className === "highlight"
       ? "Drop here"
       : data.label;
+
+  const addNewChild = () => {
+    addChild(data.index, {}, { type: "empty" });
+  };
 
   return (
     <div
@@ -42,7 +46,27 @@ const MainNode = ({ data, id }) => {
           {data.text}
         </span>
       </div>
-      <Handle type="source" position={Position.Bottom} id="a" />
+
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="a"
+        style={{
+          background: "#fff",
+          border: "1px solid black",
+          bottom: -7,
+          width: 15,
+          height: 15,
+          fontSize: 12,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          paddingBottom: 2,
+        }}
+        onClick={addNewChild}
+      >
+        +
+      </Handle>
     </div>
   );
 };

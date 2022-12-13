@@ -1,16 +1,18 @@
 import { useContext, useEffect, useState } from "react";
 import { Button, Col, Container, Form, Row } from "react-bootstrap";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { FlowContext } from "../context/FlowContext";
 import CustomForm from "./CustomForm";
+import "react-tabs/style/react-tabs.css";
+import DraggableChildren from "./DraggableChildren";
 
 const SidePanel = ({ deleteEmptyNode, setCenter }) => {
-  const [show, setShow] = useState(true);
+  const [show, setShow] = useState(false);
   const { currNode } = useContext(FlowContext);
 
   useEffect(() => {
-    if (currNode) setShow(true);
+    if (currNode) setShow(false);
   }, [currNode]);
-
   return (
     <>
       <Container
@@ -57,7 +59,24 @@ const SidePanel = ({ deleteEmptyNode, setCenter }) => {
               Hide
             </Button>
           </div>
-          <CustomForm deleteEmptyNode={deleteEmptyNode} setCenter={setCenter} />
+          <Tabs>
+            <TabList>
+              <Tab>Information</Tab>
+              {currNode.children?.length > 0 && <Tab>Children</Tab>}
+            </TabList>
+
+            <TabPanel>
+              <CustomForm
+                deleteEmptyNode={deleteEmptyNode}
+                setCenter={setCenter}
+              />
+            </TabPanel>
+            {currNode.children?.length > 0 && (
+              <TabPanel>
+                <DraggableChildren />
+              </TabPanel>
+            )}
+          </Tabs>
         </div>
       </Container>
       <Button

@@ -1,14 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 import { getBezierPath, MarkerType } from "reactflow";
+import { FlowContext } from "../context/FlowContext";
 
 import "./index.css";
 
 const foreignObjectSize = 40;
-
-const onEdgeClick = (evt, id) => {
-  //   evt.stopPropagation();
-  console.log(id);
-};
 
 export default function ButtonEdge({
   id,
@@ -20,6 +16,8 @@ export default function ButtonEdge({
   targetPosition,
   style = {},
   markerEnd = MarkerType.ArrowClosed,
+  source,
+  target,
 }) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -29,6 +27,13 @@ export default function ButtonEdge({
     targetY,
     targetPosition,
   });
+
+  const { addChildAtIndex, hasEmpty, nodes } = useContext(FlowContext);
+
+  const onEdgeClick = (evt) => {
+    let x = nodes[parseInt(source)].data.children.indexOf(parseInt(target));
+    addChildAtIndex(parseInt(source), x + 1, { type: "empty" });
+  };
 
   return (
     <>
@@ -51,6 +56,7 @@ export default function ButtonEdge({
           <button
             className="edgebutton"
             onClick={(event) => onEdgeClick(event, id)}
+            disabled={hasEmpty}
           >
             <span>+</span>
           </button>
