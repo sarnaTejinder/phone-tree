@@ -11,7 +11,7 @@ const SidePanel = ({ deleteEmptyNode, setCenter }) => {
   const { currNode } = useContext(FlowContext);
 
   useEffect(() => {
-    if (currNode) setShow(false);
+    if (currNode) setShow(true);
   }, [currNode]);
   return (
     <>

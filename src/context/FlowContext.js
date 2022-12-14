@@ -10,6 +10,7 @@ import { getLayoutedElements } from "../utils/getLayoutedElements";
 import getTree from "../utils/tree";
 import { convertToTwilioFormat } from "../utils/twilio";
 import useDraft from "../utils/useDraft";
+import { demo } from "./demo";
 
 export const FlowContext = createContext({});
 
@@ -17,49 +18,13 @@ const init = [
   {
     id: "0",
     label: "Main Greeting",
-    text: "Hello",
+    text: "Welcome to Fieldpulse!",
     level: 0,
     index: 0,
     value: 0,
     type: "main",
-    children: [1, 2, 3],
+    children: [],
     parent: null,
-  },
-  {
-    children: [],
-    index: 1,
-    parent: 0,
-    value: 1,
-    level: 1,
-    id: "1",
-    text: "",
-    label: "1",
-    user: 0,
-    type: "node",
-  },
-  {
-    type: "node",
-    level: 1,
-    id: "2",
-    parent: 0,
-    index: 2,
-    children: [],
-    value: "1",
-    text: "",
-    label: "2",
-    user: 0,
-  },
-  {
-    type: "node",
-    level: 1,
-    id: "3",
-    parent: 0,
-    index: 3,
-    children: [],
-    value: "1",
-    text: "",
-    label: "3",
-    user: 0,
   },
 ];
 
@@ -125,8 +90,7 @@ export const FlowProvider = ({ children }) => {
         text,
         level: 0,
         index: 0,
-        value: TYPES[0].value,
-        type: 0,
+        value: 0,
         type: "main",
         children: [],
         parent: null,
@@ -136,8 +100,6 @@ export const FlowProvider = ({ children }) => {
     },
     [nodes]
   );
-
-  console.log(nodes);
 
   const addChild = (parentIndex, nodeData, incomingData) => {
     let arr = nodes;
@@ -320,6 +282,19 @@ export const FlowProvider = ({ children }) => {
     return arr;
   };
 
+  const reArrangeChildren = (parentIndex, children) => {
+    let arr = nodes;
+    let curr = arr[parentIndex];
+    curr.children = children;
+    setNodes(arr);
+    calcNodes();
+  };
+
+  const useDemo = () => {
+    setNodes(demo);
+    calcNodes();
+  };
+
   return (
     <FlowContext.Provider
       value={{
@@ -334,6 +309,7 @@ export const FlowProvider = ({ children }) => {
         setShowGreetingModal,
         addMain,
         addChild,
+        useDemo,
         addChildAtIndex,
         moveChildToIndex,
         editData,
@@ -353,6 +329,7 @@ export const FlowProvider = ({ children }) => {
         getJson,
         hasEmpty,
         random,
+        reArrangeChildren,
       }}
     >
       {children}

@@ -14,7 +14,7 @@ const style = {
 export const Container = memo(function Container() {
   const [cards, setCards] = useState([]);
   const { draft, dirty, changed, updateDraft, resetDraft } = useDraft(cards);
-  const { currNode, nodes } = useContext(FlowContext);
+  const { currNode, nodes, reArrangeChildren } = useContext(FlowContext);
 
   useEffect(() => {
     resetDraft();
@@ -60,6 +60,14 @@ export const Container = memo(function Container() {
   );
 
   const [, drop] = useDrop(() => ({ accept: ItemTypes.CARD }));
+
+  const onSave = () => {
+    reArrangeChildren(
+      currNode.index,
+      cards.map((card) => card.index)
+    );
+  };
+
   return (
     <>
       <div ref={drop} style={style}>
@@ -73,7 +81,11 @@ export const Container = memo(function Container() {
           />
         ))}
       </div>
-      {cards.length > 1 && <Button disabled={!dirty}>Save order</Button>}
+      {cards.length > 1 && (
+        <Button onClick={onSave} disabled={!dirty}>
+          Save order
+        </Button>
+      )}
     </>
   );
 });

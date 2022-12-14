@@ -170,7 +170,6 @@ const Flow = () => {
       />
       <div style={{ height: "100%", width: "100%" }} ref={reactFlowWrapper}>
         <ReactFlow
-          style={{ background: "#E5E5E5" }}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
